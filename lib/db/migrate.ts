@@ -7,7 +7,9 @@ import "dotenv/config";
 
 const runMigrate = async () => {
   if (!env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is not defined");
+    console.log("⚠️  DATABASE_URL is not defined, skipping migrations");
+    console.log("   This is expected during build time if database is not available");
+    process.exit(0);
   }
 
   const connection = postgres(env.DATABASE_URL, { max: 1 });
