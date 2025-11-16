@@ -2,6 +2,7 @@ import { createResource } from "@/lib/actions/resources";
 import { findRelevantContent } from "@/lib/ai/embedding";
 import { getSetting } from "@/lib/actions/settings";
 import { createChatLog } from "@/lib/actions/chat-logs";
+import { getModel, getProviderOptions } from "@/lib/ai/model-selector";
 import {
   convertToModelMessages,
   generateObject,
@@ -22,10 +23,19 @@ export async function POST(req: Request) {
   // Get configuration from settings
   const systemPrompt = await getSetting("system_prompt");
   const modelName = await getSetting("model_name");
+  const thinkingEnabled = (await getSetting("thinking_enabled")) === "true";
+  const thinkingBudget = parseInt(await getSetting("thinking_budget") || "8192");
 
   // Get user IP for logging
   const headersList = await headers();
   const userIp = headersList.get("x-forwarded-for") || headersList.get("x-real-ip") || "unknown";
+
+  // Select model and provider
+  const { model, provider } = getModel(modelName);
+  const providerOptions = getProviderOptions(provider, {
+    thinkingEnabled,
+    thinkingBudget,
+  });
 
   const defaultSystemPrompt = `You are a helpful assistant acting as the users' second brain.
     Use tools on every request.
@@ -43,9 +53,10 @@ export async function POST(req: Request) {
 `;
 
   const result = streamText({
-    model: modelName || "openai/gpt-4o",
+    model,
     messages: convertToModelMessages(messages),
     system: systemPrompt || defaultSystemPrompt,
+    providerOptions,
     stopWhen: stepCountIs(5),
     tools: {
       addResource: tool({
@@ -105,7 +116,7 @@ export async function POST(req: Request) {
         },
       }),
     },
-    onFinish: async ({ text, usage }) => {
+    onFinish: async ({ text, usage, reasoning }) => {
       // Log the conversation
       const lastUserMessage = messages.filter(m => m.role === "user").pop();
 
@@ -118,7 +129,11 @@ export async function POST(req: Request) {
               : JSON.stringify(lastUserMessage.content),
             answer: text,
             model: modelName || "openai/gpt-4o",
-            context: { usage },
+            context: {
+              usage,
+              reasoning: reasoning || undefined, // Include Gemini thinking if available
+              provider,
+            },
           });
         } catch (error) {
           console.error("Error logging chat:", error);
