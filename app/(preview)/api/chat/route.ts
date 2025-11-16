@@ -1,5 +1,7 @@
 import { createResource } from "@/lib/actions/resources";
 import { findRelevantContent } from "@/lib/ai/embedding";
+import { getSetting } from "@/lib/actions/settings";
+import { createChatLog } from "@/lib/actions/chat-logs";
 import {
   convertToModelMessages,
   generateObject,
@@ -9,6 +11,7 @@ import {
   UIMessage,
 } from "ai";
 import { z } from "zod";
+import { headers } from "next/headers";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -16,10 +19,15 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
-  const result = streamText({
-    model: "openai/gpt-4o",
-    messages: convertToModelMessages(messages),
-    system: `You are a helpful assistant acting as the users' second brain.
+  // Get configuration from settings
+  const systemPrompt = await getSetting("system_prompt");
+  const modelName = await getSetting("model_name");
+
+  // Get user IP for logging
+  const headersList = await headers();
+  const userIp = headersList.get("x-forwarded-for") || headersList.get("x-real-ip") || "unknown";
+
+  const defaultSystemPrompt = `You are a helpful assistant acting as the users' second brain.
     Use tools on every request.
     Be sure to getInformation from your knowledge base before answering any questions.
     If the user presents infromation about themselves, use the addResource tool to store it.
@@ -32,7 +40,12 @@ export async function POST(req: Request) {
     Keep responses short and concise. Answer in a single sentence where possible.
     If you are unsure, use the getInformation tool and you can use common sense to reason based on the information you do have.
     Use your abilities as a reasoning machine to answer questions based on the information you do have.
-`,
+`;
+
+  const result = streamText({
+    model: modelName || "openai/gpt-4o",
+    messages: convertToModelMessages(messages),
+    system: systemPrompt || defaultSystemPrompt,
     stopWhen: stepCountIs(5),
     tools: {
       addResource: tool({
@@ -91,6 +104,26 @@ export async function POST(req: Request) {
           return object.questions;
         },
       }),
+    },
+    onFinish: async ({ text, usage }) => {
+      // Log the conversation
+      const lastUserMessage = messages.filter(m => m.role === "user").pop();
+
+      if (lastUserMessage) {
+        try {
+          await createChatLog({
+            userId: userIp,
+            question: typeof lastUserMessage.content === "string"
+              ? lastUserMessage.content
+              : JSON.stringify(lastUserMessage.content),
+            answer: text,
+            model: modelName || "openai/gpt-4o",
+            context: { usage },
+          });
+        } catch (error) {
+          console.error("Error logging chat:", error);
+        }
+      }
     },
   });
 
