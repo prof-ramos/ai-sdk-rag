@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { UIMessage, useChat } from "@ai-sdk/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown, { Options } from "react-markdown";
 import React from "react";
@@ -11,6 +11,8 @@ import { LoadingIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getToolName, isToolUIPart } from "ai";
+import { Button } from "@/components/ui/button";
+import { ImageIcon, X } from "lucide-react";
 
 export default function Chat() {
   const { messages, status, sendMessage } = useChat({
@@ -23,6 +25,8 @@ export default function Chat() {
   });
 
   const [input, setInput] = useState("");
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
@@ -87,13 +91,54 @@ export default function Chat() {
     return () => clearTimeout(timeout);
   }, [isAwaitingResponse]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const imageFiles = files.filter((file) =>
+      file.type.startsWith("image/"),
+    );
+
+    if (imageFiles.length !== files.length) {
+      toast.error("Only image files are supported");
+    }
+
+    setSelectedImages((prev) => [...prev, ...imageFiles]);
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     console.log("Submitting form");
     e.preventDefault();
-    if (input.trim() !== "") {
-      sendMessage({ text: input });
-      setInput("");
+    if (input.trim() === "" && selectedImages.length === 0) {
+      return;
     }
+
+    // Convert images to data URLs for the message
+    const imageDataUrls = await Promise.all(
+      selectedImages.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+
+    // Create message parts for text and images
+    const parts = [];
+    if (input.trim() !== "") {
+      parts.push({ type: "text" as const, text: input });
+    }
+    imageDataUrls.forEach((url) => {
+      parts.push({ type: "image" as const, image: url });
+    });
+
+    sendMessage({ parts });
+    setInput("");
+    setSelectedImages([]);
   };
 
   const userQuery: UIMessage | undefined = messages
@@ -125,11 +170,49 @@ export default function Chat() {
           )}
         >
           <div className="flex flex-col w-full justify-between gap-2">
+            {selectedImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-2">
+                {selectedImages.map((file, index) => (
+                  <div
+                    key={index}
+                    className="relative group rounded-lg overflow-hidden border-2 border-neutral-300 dark:border-neutral-600"
+                  >
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Upload ${index + 1}`}
+                      className="w-20 h-20 object-cover"
+                    />
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      type="button"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="flex space-x-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+              <Button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+              >
+                <ImageIcon size={20} />
+              </Button>
               <Input
                 className={`bg-neutral-100 text-base w-full text-neutral-700 dark:bg-neutral-700 dark:placeholder:text-neutral-400 dark:text-neutral-300`}
-                minLength={3}
-                required
                 value={input}
                 placeholder={"Ask me anything..."}
                 onChange={(e) => setInput(e.target.value)}
@@ -204,7 +287,11 @@ const Loading = ({ tool }: { tool?: string }) => {
       ? "Getting information"
       : tool === "addResource"
         ? "Adding information"
-        : "Thinking";
+        : tool === "searchWeb"
+          ? "Searching the web"
+          : tool === "understandQuery"
+            ? "Understanding your query"
+            : "Thinking";
 
   return (
     <AnimatePresence mode="wait">
