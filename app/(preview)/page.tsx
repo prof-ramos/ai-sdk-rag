@@ -131,7 +131,7 @@ export default function Chat() {
                 minLength={3}
                 required
                 value={input}
-                placeholder={"Ask me anything..."}
+                placeholder={"Pergunte sobre legislação, atribuições ou dados do MRE..."}
                 onChange={(e) => setInput(e.target.value)}
               />
             </form>
@@ -201,10 +201,12 @@ const AssistantMessage = ({ message }: { message: UIMessage | undefined }) => {
 const Loading = ({ tool }: { tool?: string }) => {
   const toolName =
     tool === "getInformation"
-      ? "Getting information"
+      ? "Consultando legislações"
       : tool === "addResource"
-        ? "Adding information"
-        : "Thinking";
+        ? "Adicionando informação"
+        : tool === "consultarTransparencia"
+          ? "Consultando Portal da Transparência"
+          : "Pensando";
 
   return (
     <AnimatePresence mode="wait">

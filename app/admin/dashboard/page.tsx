@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 type Tab = "prompt" | "rag" | "logs" | "settings";
 
@@ -27,6 +28,8 @@ interface ChatLog {
 interface Settings {
   system_prompt?: string;
   model_name?: string;
+  thinking_enabled?: string;
+  thinking_budget?: string;
 }
 
 export default function AdminDashboard() {
@@ -39,13 +42,29 @@ export default function AdminDashboard() {
   const [settings, setSettings] = useState<Settings>({});
   const [systemPrompt, setSystemPrompt] = useState("");
   const [modelName, setModelName] = useState("");
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [thinkingBudget, setThinkingBudget] = useState("8192");
 
   // RAG state
   const [resources, setResources] = useState<Resource[]>([]);
   const [newResourceContent, setNewResourceContent] = useState("");
+  const [newResourceTitle, setNewResourceTitle] = useState("");
+  const [newResourceType, setNewResourceType] = useState("");
+  const [newResourceUrl, setNewResourceUrl] = useState("");
 
   // Logs state
   const [logs, setLogs] = useState<ChatLog[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const logsPerPage = 10;
+
+  // Loading states
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [savingModel, setSavingModel] = useState(false);
+  const [savingThinking, setSavingThinking] = useState(false);
+  const [addingResource, setAddingResource] = useState(false);
+  const [deletingResource, setDeletingResource] = useState<string | null>(null);
+  const [exportingLogs, setExportingLogs] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -79,6 +98,8 @@ export default function AdminDashboard() {
       setSettings(data.settings || {});
       setSystemPrompt(data.settings?.system_prompt || "");
       setModelName(data.settings?.model_name || "openai/gpt-4o");
+      setThinkingEnabled(data.settings?.thinking_enabled === "true");
+      setThinkingBudget(data.settings?.thinking_budget || "8192");
     } catch (err) {
       console.error("Error loading settings:", err);
     }
@@ -96,7 +117,7 @@ export default function AdminDashboard() {
 
   const loadLogs = async () => {
     try {
-      const res = await fetch("/api/admin/logs?limit=50");
+      const res = await fetch("/api/admin/logs?limit=100");
       const data = await res.json();
       setLogs(data.logs || []);
     } catch (err) {
@@ -104,67 +125,143 @@ export default function AdminDashboard() {
     }
   };
 
+  // Filter and paginate logs
+  const filteredLogs = logs.filter((log) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      log.question.toLowerCase().includes(query) ||
+      log.answer.toLowerCase().includes(query) ||
+      (log.userId && log.userId.toLowerCase().includes(query)) ||
+      (log.model && log.model.toLowerCase().includes(query))
+    );
+  });
+
+  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+  const paginatedLogs = filteredLogs.slice(
+    (currentPage - 1) * logsPerPage,
+    currentPage * logsPerPage
+  );
+
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST" });
     router.push("/admin");
   };
 
   const handleSavePrompt = async () => {
+    setSavingPrompt(true);
     try {
       await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: "system_prompt", value: systemPrompt }),
       });
-      alert("Prompt saved successfully!");
+      toast.success("Prompt salvo com sucesso!");
     } catch (err) {
-      alert("Error saving prompt");
+      toast.error("Erro ao salvar prompt");
+    } finally {
+      setSavingPrompt(false);
     }
   };
 
   const handleSaveModel = async () => {
+    setSavingModel(true);
     try {
       await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: "model_name", value: modelName }),
       });
-      alert("Model saved successfully!");
+      toast.success("Modelo salvo com sucesso!");
     } catch (err) {
-      alert("Error saving model");
+      toast.error("Erro ao salvar modelo");
+    } finally {
+      setSavingModel(false);
+    }
+  };
+
+  const handleSaveThinkingEnabled = async () => {
+    setSavingThinking(true);
+    try {
+      await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "thinking_enabled",
+          value: thinkingEnabled ? "true" : "false"
+        }),
+      });
+      toast.success("Thinking Mode salvo com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao salvar Thinking Mode");
+    } finally {
+      setSavingThinking(false);
+    }
+  };
+
+  const handleSaveThinkingBudget = async () => {
+    setSavingThinking(true);
+    try {
+      await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "thinking_budget", value: thinkingBudget }),
+      });
+      toast.success("Budget de Thinking salvo com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao salvar budget de Thinking");
+    } finally {
+      setSavingThinking(false);
     }
   };
 
   const handleAddResource = async () => {
-    if (!newResourceContent.trim()) return;
+    if (!newResourceContent.trim()) {
+      toast.error("O conteúdo é obrigatório");
+      return;
+    }
 
+    setAddingResource(true);
     try {
       await fetch("/api/admin/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newResourceContent }),
+        body: JSON.stringify({
+          content: newResourceContent,
+          title: newResourceTitle || undefined,
+          documentType: newResourceType || undefined,
+          sourceUrl: newResourceUrl || undefined,
+        }),
       });
       setNewResourceContent("");
+      setNewResourceTitle("");
+      setNewResourceType("");
+      setNewResourceUrl("");
       loadResources();
-      alert("Resource added successfully!");
+      toast.success("Recurso adicionado com sucesso!");
     } catch (err) {
-      alert("Error adding resource");
+      toast.error("Erro ao adicionar recurso");
+    } finally {
+      setAddingResource(false);
     }
   };
 
   const handleDeleteResource = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this resource?")) return;
+    if (!confirm("Tem certeza que deseja deletar este recurso?")) return;
 
+    setDeletingResource(id);
     try {
       await fetch(`/api/admin/resources/${id}`, { method: "DELETE" });
       loadResources();
-      alert("Resource deleted successfully!");
+      toast.success("Recurso deletado com sucesso!");
     } catch (err) {
-      alert("Error deleting resource");
+      toast.error("Erro ao deletar recurso");
+    } finally {
+      setDeletingResource(null);
     }
   };
 
   const handleExportLogs = async () => {
+    setExportingLogs(true);
     try {
       const res = await fetch("/api/admin/logs/export");
       const blob = await res.blob();
@@ -176,8 +273,11 @@ export default function AdminDashboard() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.success("Logs exportados com sucesso!");
     } catch (err) {
-      alert("Error exporting logs");
+      toast.error("Erro ao exportar logs");
+    } finally {
+      setExportingLogs(false);
     }
   };
 
@@ -249,7 +349,9 @@ export default function AdminDashboard() {
                   placeholder="Enter the system prompt for the chatbot..."
                 />
               </div>
-              <Button onClick={handleSavePrompt}>Save Prompt</Button>
+              <Button onClick={handleSavePrompt} disabled={savingPrompt}>
+                {savingPrompt ? "Salvando..." : "Salvar Prompt"}
+              </Button>
             </div>
           )}
 
@@ -260,18 +362,56 @@ export default function AdminDashboard() {
                   Add New Resource
                 </h2>
                 <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="resource-title">Title (optional)</Label>
+                      <Input
+                        id="resource-title"
+                        type="text"
+                        value={newResourceTitle}
+                        onChange={(e) => setNewResourceTitle(e.target.value)}
+                        className="mt-1"
+                        placeholder="e.g., Lei nº 1234/2020"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="resource-type">Document Type (optional)</Label>
+                      <Input
+                        id="resource-type"
+                        type="text"
+                        value={newResourceType}
+                        onChange={(e) => setNewResourceType(e.target.value)}
+                        className="mt-1"
+                        placeholder="e.g., lei, decreto, portaria"
+                      />
+                    </div>
+                  </div>
                   <div>
-                    <Label htmlFor="resource-content">Content</Label>
+                    <Label htmlFor="resource-url">Source URL (optional)</Label>
+                    <Input
+                      id="resource-url"
+                      type="url"
+                      value={newResourceUrl}
+                      onChange={(e) => setNewResourceUrl(e.target.value)}
+                      className="mt-1"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="resource-content">Content *</Label>
                     <textarea
                       id="resource-content"
                       value={newResourceContent}
                       onChange={(e) => setNewResourceContent(e.target.value)}
-                      rows={5}
+                      rows={8}
                       className="mt-1 w-full rounded-md border border-gray-300 p-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                      placeholder="Enter content to add to RAG..."
+                      placeholder="Enter the full text of legislation or document..."
+                      required
                     />
                   </div>
-                  <Button onClick={handleAddResource}>Add Resource</Button>
+                  <Button onClick={handleAddResource} disabled={addingResource}>
+                    {addingResource ? "Adicionando..." : "Adicionar Recurso"}
+                  </Button>
                 </div>
               </div>
 
@@ -301,8 +441,9 @@ export default function AdminDashboard() {
                           variant="outline"
                           size="sm"
                           className="ml-4"
+                          disabled={deletingResource === resource.id}
                         >
-                          Delete
+                          {deletingResource === resource.id ? "Deletando..." : "Deletar"}
                         </Button>
                       </div>
                     </div>
@@ -318,68 +459,175 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Chat Logs ({logs.length})
                 </h2>
-                <Button onClick={handleExportLogs} variant="outline">
-                  Export CSV
+                <Button onClick={handleExportLogs} variant="outline" disabled={exportingLogs}>
+                  {exportingLogs ? "Exportando..." : "Exportar CSV"}
                 </Button>
               </div>
 
-              <div className="space-y-4">
-                {logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="rounded-md border border-gray-200 p-4 dark:border-gray-700"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {log.userId || "anonymous"} •{" "}
-                        {new Date(log.createdAt).toLocaleString()} •{" "}
-                        {log.model || "unknown"}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Question:
-                        </p>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {log.question}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          Answer:
-                        </p>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {log.answer}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              {/* Search Box */}
+              <div>
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1); // Reset to first page on search
+                  }}
+                  placeholder="Buscar por pergunta, resposta, usuário ou modelo..."
+                  className="w-full"
+                />
+                {searchQuery && (
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Mostrando {filteredLogs.length} de {logs.length} resultados
+                  </p>
+                )}
               </div>
+
+              {/* Logs List */}
+              <div className="space-y-4">
+                {paginatedLogs.length === 0 ? (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    Nenhum log encontrado
+                  </p>
+                ) : (
+                  paginatedLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="rounded-md border border-gray-200 p-4 dark:border-gray-700"
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {log.userId || "anonymous"} •{" "}
+                          {new Date(log.createdAt).toLocaleString("pt-BR")} •{" "}
+                          {log.model || "unknown"}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            Pergunta:
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {log.question}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            Resposta:
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+                            {log.answer}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === "settings" && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Model Settings
-              </h2>
+            <div className="space-y-6">
               <div>
-                <Label htmlFor="model-name">Model Name (OpenRouter)</Label>
-                <Input
-                  id="model-name"
-                  type="text"
-                  value={modelName}
-                  onChange={(e) => setModelName(e.target.value)}
-                  className="mt-1"
-                  placeholder="e.g., openai/gpt-4o, anthropic/claude-3-opus"
-                />
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Enter the model identifier from OpenRouter or OpenAI (e.g., openai/gpt-4o)
-                </p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Model Configuration
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="model-name">Model Name</Label>
+                    <Input
+                      id="model-name"
+                      type="text"
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      className="mt-1"
+                      placeholder="e.g., google/gemini-2.5-flash, openai/gpt-4o"
+                    />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Supported: <span className="font-mono">google/gemini-*</span>, <span className="font-mono">openai/*</span>, <span className="font-mono">anthropic/*</span>
+                    </p>
+                  </div>
+                  <Button onClick={handleSaveModel} disabled={savingModel}>
+                    {savingModel ? "Salvando..." : "Salvar Modelo"}
+                  </Button>
+                </div>
               </div>
-              <Button onClick={handleSaveModel}>Save Model</Button>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Gemini Thinking Mode
+                </h2>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      id="thinking-enabled"
+                      type="checkbox"
+                      checked={thinkingEnabled}
+                      onChange={(e) => setThinkingEnabled(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                    />
+                    <Label htmlFor="thinking-enabled" className="cursor-pointer">
+                      Enable Thinking Mode
+                    </Label>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    When enabled, Gemini models will show their reasoning process for complex queries. Only works with Google Gemini models.
+                  </p>
+                  <Button onClick={handleSaveThinkingEnabled} size="sm" disabled={savingThinking}>
+                    {savingThinking ? "Salvando..." : "Salvar Thinking Mode"}
+                  </Button>
+
+                  {thinkingEnabled && (
+                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                      <Label htmlFor="thinking-budget">Thinking Budget (tokens)</Label>
+                      <Input
+                        id="thinking-budget"
+                        type="number"
+                        min="1024"
+                        max="16384"
+                        step="1024"
+                        value={thinkingBudget}
+                        onChange={(e) => setThinkingBudget(e.target.value)}
+                        className="mt-1"
+                      />
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Maximum tokens for reasoning. Recommended: 8192. Range: 1024-16384.
+                      </p>
+                      <Button onClick={handleSaveThinkingBudget} size="sm" className="mt-2" disabled={savingThinking}>
+                        {savingThinking ? "Salvando..." : "Salvar Budget"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

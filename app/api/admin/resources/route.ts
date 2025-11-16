@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     await requireAdmin();
 
     const body = await request.json();
-    const { content } = body;
+    const { content, title, documentType, sourceUrl } = body;
 
     if (!content) {
       return NextResponse.json(
@@ -61,7 +61,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resource = await createResource({ content });
+    const resource = await createResource({
+      content,
+      title,
+      documentType,
+      sourceUrl,
+    });
 
     return NextResponse.json({ success: true, resource });
   } catch (error) {
