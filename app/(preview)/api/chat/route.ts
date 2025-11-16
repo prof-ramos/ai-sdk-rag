@@ -4,6 +4,14 @@ import { getSetting } from "@/lib/actions/settings";
 import { createChatLog } from "@/lib/actions/chat-logs";
 import { getModel, getProviderOptions } from "@/lib/ai/model-selector";
 import {
+  buscarOrgaosSIAFI,
+  buscarDespesasPorOrgao,
+  buscarContratos,
+  buscarViagens,
+  buscarLicitacoes,
+  buscarServidoresPorOrgao,
+} from "@/lib/api/portal-transparencia";
+import {
   convertToModelMessages,
   generateObject,
   stepCountIs,
@@ -113,6 +121,129 @@ export async function POST(req: Request) {
                     3 similar questions that could help answer the user's query`,
           });
           return object.questions;
+        },
+      }),
+      consultarTransparencia: tool({
+        description: `Consulta dados do Portal da Transparência do Governo Federal.
+          Use SOMENTE quando o usuário perguntar EXPLICITAMENTE sobre:
+          - Gastos/despesas/orçamento de órgãos federais
+          - Contratos governamentais
+          - Viagens a serviço de órgãos públicos
+          - Licitações públicas
+          - Quantidade de servidores públicos federais
+          NÃO use para perguntas sobre legislação, atribuições ou conceitos.
+          Use apenas quando tiver CERTEZA que a resposta virá dessa consulta.`,
+        inputSchema: z.object({
+          tipo: z
+            .enum([
+              "despesas",
+              "contratos",
+              "viagens",
+              "licitacoes",
+              "servidores",
+              "orgaos",
+            ])
+            .describe("Tipo de consulta a realizar"),
+          ano: z
+            .number()
+            .optional()
+            .describe("Ano de referência (para despesas)"),
+          dataInicial: z
+            .string()
+            .optional()
+            .describe("Data inicial no formato dd/MM/yyyy"),
+          dataFinal: z
+            .string()
+            .optional()
+            .describe("Data final no formato dd/MM/yyyy"),
+          codigoOrgao: z
+            .string()
+            .optional()
+            .describe(
+              "Código SIAFI do órgão (ex: 35000 para MRE). Se não souber, busque primeiro com tipo 'orgaos'"
+            ),
+          nomeOrgao: z
+            .string()
+            .optional()
+            .describe("Nome do órgão para buscar código (ex: 'Relações Exteriores')"),
+        }),
+        execute: async ({
+          tipo,
+          ano,
+          dataInicial,
+          dataFinal,
+          codigoOrgao,
+          nomeOrgao,
+        }) => {
+          try {
+            // Verificar se API key está configurada
+            if (!process.env.PORTAL_TRANSPARENCIA_API_KEY) {
+              return {
+                error:
+                  "API do Portal da Transparência não configurada. Entre em contato com o administrador.",
+              };
+            }
+
+            switch (tipo) {
+              case "orgaos":
+                return await buscarOrgaosSIAFI(
+                  nomeOrgao ? { nome: nomeOrgao } : {}
+                );
+
+              case "despesas":
+                if (!ano) {
+                  return { error: "Ano é obrigatório para consulta de despesas" };
+                }
+                return await buscarDespesasPorOrgao(ano, codigoOrgao);
+
+              case "contratos":
+                if (!dataInicial || !dataFinal || !codigoOrgao) {
+                  return {
+                    error:
+                      "Data inicial, data final e código do órgão são obrigatórios",
+                  };
+                }
+                return await buscarContratos(
+                  dataInicial,
+                  dataFinal,
+                  codigoOrgao
+                );
+
+              case "viagens":
+                if (!dataInicial || !dataFinal) {
+                  return { error: "Datas inicial e final são obrigatórias" };
+                }
+                return await buscarViagens(dataInicial, dataFinal, codigoOrgao);
+
+              case "licitacoes":
+                if (!dataInicial || !dataFinal || !codigoOrgao) {
+                  return {
+                    error:
+                      "Data inicial, data final e código do órgão são obrigatórios",
+                  };
+                }
+                return await buscarLicitacoes(
+                  dataInicial,
+                  dataFinal,
+                  codigoOrgao
+                );
+
+              case "servidores":
+                if (!codigoOrgao) {
+                  return { error: "Código do órgão é obrigatório" };
+                }
+                return await buscarServidoresPorOrgao(codigoOrgao);
+
+              default:
+                return { error: "Tipo de consulta não reconhecido" };
+            }
+          } catch (error) {
+            console.error("Erro ao consultar Portal da Transparência:", error);
+            return {
+              error:
+                "Erro ao consultar Portal da Transparência. Verifique os parâmetros e tente novamente.",
+            };
+          }
         },
       }),
     },

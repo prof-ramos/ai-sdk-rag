@@ -2,6 +2,40 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [v2.1.0] - 2025-11-16
+
+### ✨ Nova Integração: Portal da Transparência
+
+#### Tool `consultarTransparencia`
+- ✅ Consulta gastos/despesas de órgãos federais
+- ✅ Pesquisa contratos governamentais
+- ✅ Lista viagens a serviço
+- ✅ Busca licitações públicas
+- ✅ Consulta quantidade de servidores
+- ✅ Busca códigos de órgãos (SIAFI)
+
+#### Casos de Uso Específicos para MRE
+- "Quanto o Ministério das Relações Exteriores gastou em 2024?"
+- "Quais foram as viagens do Itamaraty no último mês?"
+- "Mostre os contratos do MRE"
+- "Quantos servidores tem o Ministério das Relações Exteriores?"
+
+#### Documentação
+- ✅ **PORTAL_TRANSPARENCIA_GUIDE.md** - Guia completo de integração
+  * Setup e obtenção de API key
+  * Todos os endpoints disponíveis
+  * Exemplos práticos
+  * Cache e rate limiting
+  * Troubleshooting
+
+#### Segurança e Performance
+- ✅ Validação rigorosa de quando usar a tool
+- ✅ Error handling robusto
+- ✅ Mensagens de erro claras
+- ✅ Suporte a cache (documentado)
+
+---
+
 ## [v2.0.0] - 2025-11-16
 
 ### ✨ Novas Funcionalidades
