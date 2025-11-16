@@ -15,6 +15,13 @@
       "when": 1763294267449,
       "tag": "0001_superb_marauders",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763295015064,
+      "tag": "0002_uneven_shriek",
+      "breakpoints": true
     }
   ]
 }

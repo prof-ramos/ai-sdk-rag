@@ -11,6 +11,11 @@ export const resources = pgTable("resources", {
     .$defaultFn(() => nanoid()),
   content: text("content").notNull(),
 
+  // Metadata para melhor contexto e filtragem
+  title: text("title"), // Ex: "Lei nº 1234/2020"
+  documentType: varchar("document_type", { length: 100 }), // Ex: "lei", "decreto", "portaria"
+  sourceUrl: text("source_url"), // URL oficial do documento
+
   createdAt: timestamp("created_at")
     .notNull()
     .default(sql`now()`),
@@ -21,7 +26,11 @@ export const resources = pgTable("resources", {
 
 // Schema for resources - used to validate API requests
 export const insertResourceSchema = createSelectSchema(resources)
-  .extend({})
+  .extend({
+    title: z.string().optional(),
+    documentType: z.string().optional(),
+    sourceUrl: z.string().url().optional().or(z.literal('')),
+  })
   .omit({
     id: true,
     createdAt: true,
