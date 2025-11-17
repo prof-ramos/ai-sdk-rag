@@ -40,6 +40,7 @@ Implemented prompt caching using OpenAI's ephemeral cache control to improve per
 - Better user experience
 
 **Implementation**:
+
 ```typescript
 experimental_providerMetadata: {
   openai: {
@@ -91,6 +92,7 @@ The loading state now shows specific messages for each tool:
 ## Technical Implementation Details
 
 ### Web Search
+
 ```typescript
 searchWeb: tool({
   description: `search the web for current information...`,
@@ -106,6 +108,7 @@ searchWeb: tool({
 ```
 
 ### Multimodal Messages
+
 ```typescript
 const parts = [];
 if (input.trim() !== "") {
