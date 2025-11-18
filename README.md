@@ -30,10 +30,11 @@ To get the project up and running, follow these steps:
    cp .env.example .env
    ```
 
-3. Add your Vercel AI Gateway API key and PostgreSQL connection string to the `.env` file:
+3. Add your Vercel AI Gateway API key, Perplexity API key e a string de conexão do PostgreSQL ao arquivo `.env`:
 
    ```
    AI_GATEWAY_API_KEY=your_api_key_here
+   PERPLEXITY_API_KEY=your_perplexity_api_key_here
    DATABASE_URL=your_postgres_connection_string_here
    ```
 
@@ -49,3 +50,7 @@ To get the project up and running, follow these steps:
    ```
 
 Your project should now be running on [http://localhost:3000](http://localhost:3000).
+
+## Busca na Web
+
+O chatbot utiliza a API do Perplexity (modelo `pplx-70b-online`) para realizar buscas na web com retorno estruturado. Certifique-se de definir `PERPLEXITY_API_KEY` no `.env` e de que a chave tenha permissões para requisições ao endpoint `https://api.perplexity.ai/chat/completions`. Em caso de falha ou ausência da chave, a busca retornará uma lista vazia e o log de erro será exibido no servidor.
