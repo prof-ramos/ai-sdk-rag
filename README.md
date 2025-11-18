@@ -1,8 +1,8 @@
-# AI SDK RAG Template
+# Sofia Chatbot RAG - Enhanced AI Assistant
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnicoalbanese%2Fai-sdk-rag-template&env=OPENAI_API_KEY&envDescription=You%20will%20need%20an%20OPENAI%20API%20Key.&project-name=ai-sdk-rag&repository-name=ai-sdk-rag&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D&skippable-integrations=1)
 
-A [Next.js](https://nextjs.org/) application, powered by the Vercel AI SDK, that uses retrieval-augmented generation (RAG) to reason and respond with information outside of the model's training data.
+A [Next.js](https://nextjs.org/) application powered by the Vercel AI SDK that uses retrieval-augmented generation (RAG) to reason and respond with information outside of the model's training data. Enhanced with web search, prompt caching, and multimodal input capabilities.
 
 ## Features
 
@@ -10,6 +10,9 @@ A [Next.js](https://nextjs.org/) application, powered by the Vercel AI SDK, that
 - Real-time streaming of model responses to the frontend using the [`useChat`](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat) hook
 - Vector embedding storage with [DrizzleORM](https://orm.drizzle.team/) and [PostgreSQL](https://www.postgresql.org/)
 - Animated UI with [Framer Motion](https://www.framer.com/motion/)
+- Web search capability for current events and recent information
+- Prompt caching for improved performance and reduced costs
+- Multimodal input support (images) for visual information processing
 
 ## Getting Started
 

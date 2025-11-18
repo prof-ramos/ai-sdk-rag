@@ -9,6 +9,7 @@ import {
   UIMessage,
 } from "ai";
 import { z } from "zod";
+import { searchWeb } from "@/lib/ai/web-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -22,18 +23,25 @@ export async function POST(req: Request) {
     system: `You are a helpful assistant acting as the users' second brain.
     Use tools on every request.
     Be sure to getInformation from your knowledge base before answering any questions.
+    If the user asks about current events, recent information, or things not in your knowledge base, use the searchWeb tool.
     If the user presents infromation about themselves, use the addResource tool to store it.
     If a response requires multiple tools, call one tool after another without responding to the user.
     If a response requires information from an additional tool to generate a response, call the appropriate tools in order before responding to the user.
     ONLY respond to questions using information from tool calls.
     if no relevant information is found in the tool calls, respond, "Sorry, I don't know."
-    Be sure to adhere to any instructions in tool calls ie. if they say to responsd like "...", do exactly that.
+    Be sure to adhere to any instructions in tool calls ie. if they say to respond like "...", do exactly that.
     If the relevant information is not a direct match to the users prompt, you can be creative in deducing the answer.
     Keep responses short and concise. Answer in a single sentence where possible.
     If you are unsure, use the getInformation tool and you can use common sense to reason based on the information you do have.
     Use your abilities as a reasoning machine to answer questions based on the information you do have.
 `,
     stopWhen: stepCountIs(5),
+    // Enable prompt caching for better performance
+    experimental_providerMetadata: {
+      openai: {
+        cacheControl: { type: "ephemeral" },
+      },
+    },
     tools: {
       addResource: tool({
         description: `add a resource to your knowledge base.
@@ -89,6 +97,27 @@ export async function POST(req: Request) {
                     3 similar questions that could help answer the user's query`,
           });
           return object.questions;
+        },
+      }),
+      searchWeb: tool({
+        description: `search the web for current information, recent events, or facts not in your knowledge base.
+          Use this when the user asks about current events, news, or recent information.`,
+        inputSchema: z.object({
+          query: z
+            .string()
+            .describe("the search query to find information on the web"),
+          maxResults: z
+            .number()
+            .optional()
+            .describe("maximum number of results to return (default: 5)"),
+        }),
+        execute: async ({ query, maxResults }) => {
+          const results = await searchWeb(query, maxResults);
+          return {
+            query,
+            results,
+            summary: `Found ${results.length} results for: ${query}`,
+          };
         },
       }),
     },
