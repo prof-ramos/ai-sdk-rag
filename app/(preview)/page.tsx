@@ -177,6 +177,7 @@ export default function Chat() {
                     key={index}
                     className="relative group rounded-lg overflow-hidden border-2 border-neutral-300 dark:border-neutral-600"
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={URL.createObjectURL(file)}
                       alt={`Upload ${index + 1}`}
