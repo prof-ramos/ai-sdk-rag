@@ -1,5 +1,16 @@
 import { createResource } from "@/lib/actions/resources";
 import { findRelevantContent } from "@/lib/ai/embedding";
+import { getSetting } from "@/lib/actions/settings";
+import { createChatLog } from "@/lib/actions/chat-logs";
+import { getModel, getProviderOptions } from "@/lib/ai/model-selector";
+import {
+  buscarOrgaosSIAFI,
+  buscarDespesasPorOrgao,
+  buscarContratos,
+  buscarViagens,
+  buscarLicitacoes,
+  buscarServidoresPorOrgao,
+} from "@/lib/api/portal-transparencia";
 import {
   convertToModelMessages,
   generateObject,
@@ -10,6 +21,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import { searchWeb } from "@/lib/ai/web-search";
+import { headers } from "next/headers";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -17,10 +29,24 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
-  const result = streamText({
-    model: "openai/gpt-4o",
-    messages: convertToModelMessages(messages),
-    system: `You are a helpful assistant acting as the users' second brain.
+  // Get configuration from settings
+  const systemPrompt = await getSetting("system_prompt");
+  const modelName = await getSetting("model_name");
+  const thinkingEnabled = (await getSetting("thinking_enabled")) === "true";
+  const thinkingBudget = parseInt(await getSetting("thinking_budget") || "8192");
+
+  // Get user IP for logging
+  const headersList = await headers();
+  const userIp = headersList.get("x-forwarded-for") || headersList.get("x-real-ip") || "unknown";
+
+  // Select model and provider
+  const { model, provider } = getModel(modelName);
+  const providerOptions = getProviderOptions(provider, {
+    thinkingEnabled,
+    thinkingBudget,
+  });
+
+  const defaultSystemPrompt = `You are a helpful assistant acting as the users' second brain.
     Use tools on every request.
     Be sure to getInformation from your knowledge base before answering any questions.
     If the user asks about current events, recent information, or things not in your knowledge base, use the searchWeb tool.
@@ -34,14 +60,14 @@ export async function POST(req: Request) {
     Keep responses short and concise. Answer in a single sentence where possible.
     If you are unsure, use the getInformation tool and you can use common sense to reason based on the information you do have.
     Use your abilities as a reasoning machine to answer questions based on the information you do have.
-`,
+`;
+
+  const result = streamText({
+    model,
+    messages: convertToModelMessages(messages),
+    system: systemPrompt || defaultSystemPrompt,
+    providerOptions,
     stopWhen: stepCountIs(5),
-    // Enable prompt caching for better performance
-    experimental_providerMetadata: {
-      openai: {
-        cacheControl: { type: "ephemeral" },
-      },
-    },
     tools: {
       addResource: tool({
         description: `add a resource to your knowledge base.
@@ -84,7 +110,7 @@ export async function POST(req: Request) {
         }),
         execute: async ({ query }) => {
           const { object } = await generateObject({
-            model: "openai/gpt-4o",
+            model,
             system:
               "You are a query understanding assistant. Analyze the user query and generate similar questions.",
             schema: z.object({
@@ -120,6 +146,157 @@ export async function POST(req: Request) {
           };
         },
       }),
+      consultarTransparencia: tool({
+        description: `Consulta dados do Portal da Transparência do Governo Federal.
+          Use SOMENTE quando o usuário perguntar EXPLICITAMENTE sobre:
+          - Gastos/despesas/orçamento de órgãos federais
+          - Contratos governamentais
+          - Viagens a serviço de órgãos públicos
+          - Licitações públicas
+          - Quantidade de servidores públicos federais
+          NÃO use para perguntas sobre legislação, atribuições ou conceitos.
+          Use apenas quando tiver CERTEZA que a resposta virá dessa consulta.`,
+        inputSchema: z.object({
+          tipo: z
+            .enum([
+              "despesas",
+              "contratos",
+              "viagens",
+              "licitacoes",
+              "servidores",
+              "orgaos",
+            ])
+            .describe("Tipo de consulta a realizar"),
+          ano: z
+            .number()
+            .optional()
+            .describe("Ano de referência (para despesas)"),
+          dataInicial: z
+            .string()
+            .optional()
+            .describe("Data inicial no formato dd/MM/yyyy"),
+          dataFinal: z
+            .string()
+            .optional()
+            .describe("Data final no formato dd/MM/yyyy"),
+          codigoOrgao: z
+            .string()
+            .optional()
+            .describe(
+              "Código SIAFI do órgão (ex: 35000 para MRE). Se não souber, busque primeiro com tipo 'orgaos'"
+            ),
+          nomeOrgao: z
+            .string()
+            .optional()
+            .describe("Nome do órgão para buscar código (ex: 'Relações Exteriores')"),
+        }),
+        execute: async ({
+          tipo,
+          ano,
+          dataInicial,
+          dataFinal,
+          codigoOrgao,
+          nomeOrgao,
+        }) => {
+          try {
+            // Verificar se API key está configurada
+            if (!process.env.PORTAL_TRANSPARENCIA_API_KEY) {
+              return {
+                error:
+                  "API do Portal da Transparência não configurada. Entre em contato com o administrador.",
+              };
+            }
+
+            switch (tipo) {
+              case "orgaos":
+                return await buscarOrgaosSIAFI(
+                  nomeOrgao ? { nome: nomeOrgao } : {}
+                );
+
+              case "despesas":
+                if (!ano) {
+                  return { error: "Ano é obrigatório para consulta de despesas" };
+                }
+                return await buscarDespesasPorOrgao(ano, codigoOrgao);
+
+              case "contratos":
+                if (!dataInicial || !dataFinal || !codigoOrgao) {
+                  return {
+                    error:
+                      "Data inicial, data final e código do órgão são obrigatórios",
+                  };
+                }
+                return await buscarContratos(
+                  dataInicial,
+                  dataFinal,
+                  codigoOrgao
+                );
+
+              case "viagens":
+                if (!dataInicial || !dataFinal) {
+                  return { error: "Datas inicial e final são obrigatórias" };
+                }
+                return await buscarViagens(dataInicial, dataFinal, codigoOrgao);
+
+              case "licitacoes":
+                if (!dataInicial || !dataFinal || !codigoOrgao) {
+                  return {
+                    error:
+                      "Data inicial, data final e código do órgão são obrigatórios",
+                  };
+                }
+                return await buscarLicitacoes(
+                  dataInicial,
+                  dataFinal,
+                  codigoOrgao
+                );
+
+              case "servidores":
+                if (!codigoOrgao) {
+                  return { error: "Código do órgão é obrigatório" };
+                }
+                return await buscarServidoresPorOrgao(codigoOrgao);
+
+              default:
+                return { error: "Tipo de consulta não reconhecido" };
+            }
+          } catch (error) {
+            console.error("Erro ao consultar Portal da Transparência:", error);
+            return {
+              error:
+                "Erro ao consultar Portal da Transparência. Verifique os parâmetros e tente novamente.",
+            };
+          }
+        },
+      }),
+    },
+    onFinish: async ({ text, usage, reasoning }) => {
+      // Log the conversation
+      const lastUserMessage = messages.filter(m => m.role === "user").pop();
+
+      if (lastUserMessage) {
+        try {
+          // Extract text content from UIMessage parts
+          const questionText = lastUserMessage.parts
+            .filter(part => part.type === "text")
+            .map(part => (part as { type: "text"; text: string }).text)
+            .join(" ");
+
+          await createChatLog({
+            userId: userIp,
+            question: questionText || JSON.stringify(lastUserMessage.parts),
+            answer: text,
+            model: modelName || "openai/gpt-4o",
+            context: JSON.parse(JSON.stringify({
+              usage,
+              reasoning: reasoning || null,
+              provider,
+            })),
+          });
+        } catch (error) {
+          console.error("Error logging chat:", error);
+        }
+      }
     },
   });
 

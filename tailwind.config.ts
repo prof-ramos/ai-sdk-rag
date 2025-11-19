@@ -46,6 +46,17 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Institutional color palette
+        institutional: {
+          primary: "#040920",     // Principal - azul escuro institucional
+          secondary: "#0D2A4A",   // Secundária - azul médio
+          accent: "#82b4d6",      // Destaque - azul claro
+          neutral: "#e7edf4",     // Neutro claro - azul muito claro
+        },
+      },
+      backgroundImage: {
+        'gradient-institutional': 'linear-gradient(to right, #0D2A4A, #82b4d6)',
+        'gradient-institutional-vertical': 'linear-gradient(to bottom, #0D2A4A, #82b4d6)',
       },
       borderRadius: {
         lg: `var(--radius)`,

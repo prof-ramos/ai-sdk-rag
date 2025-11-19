@@ -177,6 +177,7 @@ export default function Chat() {
                     key={index}
                     className="relative group rounded-lg overflow-hidden border-2 border-neutral-300 dark:border-neutral-600"
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={URL.createObjectURL(file)}
                       alt={`Upload ${index + 1}`}
@@ -214,7 +215,7 @@ export default function Chat() {
               <Input
                 className={`bg-neutral-100 text-base w-full text-neutral-700 dark:bg-neutral-700 dark:placeholder:text-neutral-400 dark:text-neutral-300`}
                 value={input}
-                placeholder={"Ask me anything..."}
+                placeholder={"Pergunte sobre legislação, atribuições ou dados do MRE..."}
                 onChange={(e) => setInput(e.target.value)}
               />
             </form>
@@ -284,14 +285,16 @@ const AssistantMessage = ({ message }: { message: UIMessage | undefined }) => {
 const Loading = ({ tool }: { tool?: string }) => {
   const toolName =
     tool === "getInformation"
-      ? "Getting information"
+      ? "Consultando legislações"
       : tool === "addResource"
-        ? "Adding information"
+        ? "Adicionando informação"
         : tool === "searchWeb"
-          ? "Searching the web"
-          : tool === "understandQuery"
-            ? "Understanding your query"
-            : "Thinking";
+          ? "Buscando na web"
+          : tool === "consultarTransparencia"
+            ? "Consultando Portal da Transparência"
+            : tool === "understandQuery"
+              ? "Analisando sua pergunta"
+              : "Pensando";
 
   return (
     <AnimatePresence mode="wait">

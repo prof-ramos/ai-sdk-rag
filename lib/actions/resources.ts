@@ -11,14 +11,19 @@ import { embeddings as embeddingsTable } from "../db/schema/embeddings";
 
 export const createResource = async (input: NewResourceParams) => {
   try {
-    const { content } = insertResourceSchema.parse(input);
+    const validatedInput = insertResourceSchema.parse(input);
 
     const [resource] = await db
       .insert(resources)
-      .values({ content })
+      .values({
+        content: validatedInput.content,
+        title: validatedInput.title,
+        documentType: validatedInput.documentType,
+        sourceUrl: validatedInput.sourceUrl,
+      })
       .returning();
 
-    const embeddings = await generateEmbeddings(content);
+    const embeddings = await generateEmbeddings(validatedInput.content);
     await db.insert(embeddingsTable).values(
       embeddings.map((embedding) => ({
         resourceId: resource.id,
@@ -27,8 +32,10 @@ export const createResource = async (input: NewResourceParams) => {
     );
     return "Resource successfully created and embedded.";
   } catch (error) {
-    return error instanceof Error && error.message.length > 0
-      ? error.message
-      : "Error, please try again.";
+    // Log detailed error server-side for debugging
+    console.error("Error creating resource:", error);
+
+    // Return generic message to client to avoid leaking sensitive information
+    return "Erro ao criar recurso. Por favor, tente novamente.";
   }
 };
