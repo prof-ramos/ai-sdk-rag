@@ -75,6 +75,21 @@ cp .env.example .env.local
 # Editar .env.local com suas credenciais
 ```
 
+**⚠️ CRÍTICO - Segurança:**
+Antes de iniciar a aplicação, você **DEVE** gerar uma chave JWT_SECRET forte:
+
+```bash
+# Gerar JWT_SECRET seguro (escolha um):
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# OU
+openssl rand -base64 32
+
+# Adicione o resultado em .env.local:
+# JWT_SECRET="sua-chave-gerada-aqui"
+```
+
+**A aplicação NÃO iniciará sem um JWT_SECRET válido (mínimo 32 caracteres).**
+
 ### 3. Configurar Banco de Dados
 
 ```bash

@@ -2,9 +2,16 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || "default-secret-key-change-in-production"
-);
+// Validate JWT_SECRET exists at module initialization
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "SECURITY ERROR: JWT_SECRET environment variable is required but not set. " +
+    "The application cannot start without a secure JWT secret. " +
+    "Set JWT_SECRET in your .env.local file to a cryptographically secure random string (minimum 32 characters)."
+  );
+}
+
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export interface JWTPayload {
   adminId: string;
