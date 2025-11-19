@@ -1,17 +1,22 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { env } from "@/lib/env.mjs";
 
-// Validate JWT_SECRET exists at module initialization
-if (!process.env.JWT_SECRET) {
-  throw new Error(
-    "SECURITY ERROR: JWT_SECRET environment variable is required but not set. " +
-    "The application cannot start without a secure JWT secret. " +
-    "Set JWT_SECRET in your .env.local file to a cryptographically secure random string (minimum 32 characters)."
-  );
+// Use a placeholder during build time, but validate at runtime
+const JWT_SECRET = env.JWT_SECRET || process.env.JWT_SECRET || "";
+
+// Validate JWT_SECRET when actually using it (runtime check)
+function getSecretKey(): Uint8Array {
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error(
+      "SECURITY ERROR: JWT_SECRET environment variable is required but not set. " +
+      "The application cannot start without a secure JWT secret. " +
+      "Set JWT_SECRET in your .env.local file to a cryptographically secure random string (minimum 32 characters)."
+    );
+  }
+  return new TextEncoder().encode(JWT_SECRET);
 }
-
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export interface JWTPayload {
   adminId: string;
@@ -35,12 +40,12 @@ export async function createToken(payload: JWTPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("24h")
-    .sign(SECRET_KEY);
+    .sign(getSecretKey());
 }
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
+    const { payload } = await jwtVerify(token, getSecretKey());
     return payload as unknown as JWTPayload;
   } catch (error) {
     return null;
