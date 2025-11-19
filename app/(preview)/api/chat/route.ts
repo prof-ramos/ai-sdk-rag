@@ -110,7 +110,7 @@ export async function POST(req: Request) {
         }),
         execute: async ({ query }) => {
           const { object } = await generateObject({
-            model: "openai/gpt-4o",
+            model,
             system:
               "You are a query understanding assistant. Analyze the user query and generate similar questions.",
             schema: z.object({

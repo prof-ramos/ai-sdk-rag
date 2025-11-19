@@ -32,8 +32,10 @@ export const createResource = async (input: NewResourceParams) => {
     );
     return "Resource successfully created and embedded.";
   } catch (error) {
-    return error instanceof Error && error.message.length > 0
-      ? error.message
-      : "Error, please try again.";
+    // Log detailed error server-side for debugging
+    console.error("Error creating resource:", error);
+
+    // Return generic message to client to avoid leaking sensitive information
+    return "Erro ao criar recurso. Por favor, tente novamente.";
   }
 };

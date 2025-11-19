@@ -318,6 +318,7 @@ export default function AdminDashboard() {
             ].map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id as Tab)}
                 className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                   activeTab === tab.id
