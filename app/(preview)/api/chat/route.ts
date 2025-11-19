@@ -68,12 +68,6 @@ export async function POST(req: Request) {
     system: systemPrompt || defaultSystemPrompt,
     providerOptions,
     stopWhen: stepCountIs(5),
-    // Enable prompt caching for better performance
-    experimental_providerMetadata: {
-      openai: {
-        cacheControl: { type: "ephemeral" },
-      },
-    },
     tools: {
       addResource: tool({
         description: `add a resource to your knowledge base.
@@ -282,18 +276,22 @@ export async function POST(req: Request) {
 
       if (lastUserMessage) {
         try {
+          // Extract text content from UIMessage parts
+          const questionText = lastUserMessage.parts
+            .filter(part => part.type === "text")
+            .map(part => (part as { type: "text"; text: string }).text)
+            .join(" ");
+
           await createChatLog({
             userId: userIp,
-            question: typeof lastUserMessage.content === "string"
-              ? lastUserMessage.content
-              : JSON.stringify(lastUserMessage.content),
+            question: questionText || JSON.stringify(lastUserMessage.parts),
             answer: text,
             model: modelName || "openai/gpt-4o",
-            context: {
+            context: JSON.parse(JSON.stringify({
               usage,
-              reasoning: reasoning || undefined, // Include Gemini thinking if available
+              reasoning: reasoning || null,
               provider,
-            },
+            })),
           });
         } catch (error) {
           console.error("Error logging chat:", error);

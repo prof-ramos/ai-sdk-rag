@@ -85,7 +85,9 @@ export const generateEmbedding = async (value: string): Promise<number[]> => {
   // Limitar tamanho do cache (FIFO)
   if (embeddingCache.size > CACHE_MAX_SIZE) {
     const firstKey = embeddingCache.keys().next().value;
-    embeddingCache.delete(firstKey);
+    if (firstKey) {
+      embeddingCache.delete(firstKey);
+    }
   }
 
   return embedding;

@@ -16,6 +16,7 @@ const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 export interface JWTPayload {
   adminId: string;
   username: string;
+  [key: string]: unknown;
 }
 
 export async function hashPassword(password: string): Promise<string> {

@@ -17,13 +17,14 @@ export const VercelIcon = ({ size = 17 }) => {
   );
 };
 
-export const InformationIcon = ({ size = 17 }) => {
+export const InformationIcon = ({ size = 17, className = "" }: { size?: number; className?: string }) => {
   return (
     <svg
       height={size}
       strokeLinejoin="round"
       viewBox="0 0 16 16"
       width={size}
+      className={className}
       style={{ color: "currentcolor" }}
     >
       <path
