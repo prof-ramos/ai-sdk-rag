@@ -5,11 +5,51 @@ import { db } from "../db";
 
 const embeddingModel = "openai/text-embedding-ada-002";
 
+// Cache de embeddings para evitar chamadas duplicadas à API
+const embeddingCache = new Map<string, number[]>();
+const CACHE_MAX_SIZE = 1000;
+
+/**
+ * Gera chunks otimizados para legislações e documentos estruturados
+ * Estratégia:
+ * 1. Tenta dividir por artigos (legislações)
+ * 2. Fallback: divide por parágrafos duplos
+ * 3. Fallback final: divide por sentenças
+ */
 const generateChunks = (input: string): string[] => {
-  return input
-    .trim()
+  const trimmedInput = input.trim();
+
+  // Estratégia 1: Dividir por artigos (para legislações)
+  // Padrões: "Art. 1º", "Art. 1°", "Art 1", "Artigo 1", etc.
+  const articlePattern = /(?=(?:Art\.?|Artigo)\s*\d+)/i;
+  const articles = trimmedInput.split(articlePattern);
+
+  if (articles.length > 1) {
+    // Encontrou artigos - retorna chunks por artigo
+    return articles
+      .map(article => article.trim())
+      .filter(article => article.length > 20); // Ignora chunks muito pequenos
+  }
+
+  // Estratégia 2: Dividir por parágrafos duplos
+  const paragraphs = trimmedInput.split(/\n\n+/);
+
+  if (paragraphs.length > 1) {
+    const validParagraphs = paragraphs
+      .map(p => p.trim())
+      .filter(p => p.length > 30);
+
+    if (validParagraphs.length > 0) {
+      return validParagraphs;
+    }
+  }
+
+  // Estratégia 3: Dividir por sentenças (fallback original)
+  return trimmedInput
     .split(".")
-    .filter((i) => i !== "");
+    .map(chunk => chunk.trim())
+    .filter(chunk => chunk.length > 10)
+    .map(chunk => chunk + ".");
 };
 
 export const generateEmbeddings = async (
@@ -25,10 +65,29 @@ export const generateEmbeddings = async (
 
 export const generateEmbedding = async (value: string): Promise<number[]> => {
   const input = value.replaceAll("\n", " ");
+  const cacheKey = input.toLowerCase().trim();
+
+  // Verificar cache primeiro
+  if (embeddingCache.has(cacheKey)) {
+    console.log("🎯 Cache hit for embedding");
+    return embeddingCache.get(cacheKey)!;
+  }
+
+  // Gerar novo embedding
   const { embedding } = await embed({
     model: embeddingModel,
     value: input,
   });
+
+  // Adicionar ao cache
+  embeddingCache.set(cacheKey, embedding);
+
+  // Limitar tamanho do cache (FIFO)
+  if (embeddingCache.size > CACHE_MAX_SIZE) {
+    const firstKey = embeddingCache.keys().next().value;
+    embeddingCache.delete(firstKey);
+  }
+
   return embedding;
 };
 
