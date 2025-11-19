@@ -9,7 +9,7 @@
 
 // Configuration constants
 const PERPLEXITY_TIMEOUT = 10000; // 10 seconds
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 1; // Reduced to 1 to stay within 30s API route timeout (worst case: 10s + 1s + 10s = 21s)
 const RETRY_DELAY_BASE = 1000; // 1 second base delay for exponential backoff
 
 export interface SearchResult {
