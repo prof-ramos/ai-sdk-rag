@@ -30,12 +30,18 @@ To get the project up and running, follow these steps:
    cp .env.example .env
    ```
 
-3. Add your Vercel AI Gateway API key and PostgreSQL connection string to the `.env` file:
+3. Add your Vercel AI Gateway API key, Perplexity API key, and PostgreSQL connection string to the `.env` file:
 
    ```
    AI_GATEWAY_API_KEY=your_api_key_here
+   PERPLEXITY_API_KEY=your_perplexity_api_key_here
    DATABASE_URL=your_postgres_connection_string_here
    ```
+
+   **Getting API Keys:**
+   - **AI Gateway API Key**: Get from [Vercel AI Dashboard](https://vercel.com/docs/ai)
+   - **Perplexity API Key**: Sign up at [Perplexity API](https://www.perplexity.ai/settings/api) (requires paid account for production use)
+   - **Database URL**: Your PostgreSQL connection string
 
 4. Migrate the database schema:
 
@@ -49,3 +55,50 @@ To get the project up and running, follow these steps:
    ```
 
 Your project should now be running on [http://localhost:3000](http://localhost:3000).
+
+## Web Search Feature
+
+The chatbot includes web search capabilities powered by Perplexity's Sonar API, allowing it to access current information and recent events beyond the AI model's training data.
+
+### How It Works
+
+- **Model**: Uses Perplexity's `sonar` model, specifically designed for web search with structured citations
+- **Features**:
+  - Automatic retry with exponential backoff for reliability
+  - Request timeout protection (10 seconds)
+  - Input sanitization for security
+  - Response validation
+  - Graceful error handling
+
+### Configuration
+
+1. **Get an API Key**: Sign up at [Perplexity API](https://www.perplexity.ai/settings/api)
+2. **Add to Environment**: Set `PERPLEXITY_API_KEY` in your `.env` file
+3. **Usage Costs**: Perplexity API is a paid service. Monitor your usage at their dashboard.
+
+### Models Available
+
+- **`sonar`**: Faster responses, lower cost (default)
+- **`sonar-pro`**: More accurate results, higher cost
+
+To switch models, edit `lib/ai/web-search.ts` and change the `model` parameter.
+
+### Error Handling
+
+If the web search fails or the API key is missing:
+- The function returns an empty array
+- Errors are logged to the server console
+- The chatbot continues to function with RAG-only capabilities
+
+### Troubleshooting
+
+**Issue**: "PERPLEXITY_API_KEY is not configured"
+- **Solution**: Ensure the API key is set in your `.env` file
+
+**Issue**: Search timeouts
+- **Solution**: The function automatically retries. If persistent, check your network connection or Perplexity API status
+
+**Issue**: "Client error - not retrying"
+- **Solution**: Check your API key is valid and has sufficient quota
+
+For more information, see the [Perplexity API Documentation](https://docs.perplexity.ai/).
