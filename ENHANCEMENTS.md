@@ -22,6 +22,12 @@ The chatbot now includes a web search tool that allows it to search the internet
 - News
 - Facts not in the knowledge base
 
+**Retry Configuration**: The search includes retry logic with timeout controls to ensure requests complete within the API route's 30-second limit:
+- Timeout per attempt: 7 seconds
+- Maximum retries: 2 (3 total attempts)
+- Backoff delays: 1s, 2s (exponential backoff)
+- Worst-case timing: 7s + 1s + 7s + 2s + 7s = 24s (leaves 6s safety buffer)
+
 **Production Note**: The current implementation uses a basic web scraping approach. For production deployments, consider using:
 - Tavily Search API
 - Brave Search API
