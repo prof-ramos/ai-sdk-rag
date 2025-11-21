@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { InformationIcon } from "./icons";
+import { Flag } from "lucide-react";
 
 const ProjectOverview = () => {
   return (
@@ -13,7 +14,11 @@ const ProjectOverview = () => {
     >
       <div className="border-2 border-institutional-accent/30 rounded-xl p-6 flex flex-col gap-4 text-sm bg-gradient-to-br from-white to-institutional-neutral dark:from-institutional-secondary dark:to-institutional-primary shadow-xl backdrop-blur-sm">
         <div className="flex flex-row justify-center items-center gap-3">
-          <div className="text-3xl">🇧🇷</div>
+          <Flag
+            size={32}
+            className="text-institutional-accent dark:text-institutional-accent flex-shrink-0"
+            aria-label="Bandeira do Brasil"
+          />
           <h1 className="text-2xl font-bold bg-gradient-institutional bg-clip-text text-transparent">
             ChatBot para Oficiais de Chancelaria
           </h1>

@@ -150,8 +150,8 @@ export default function Chat() {
     .slice(-1)[0];
 
   return (
-    <div className="flex justify-center items-start sm:pt-16 min-h-screen w-full bg-gradient-to-br from-institutional-neutral via-white to-institutional-neutral dark:from-institutional-primary dark:via-institutional-secondary dark:to-institutional-primary px-4 md:px-0 py-4">
-      <div className="flex flex-col items-center w-full max-w-[500px]">
+    <main className="flex justify-center items-start sm:pt-16 min-h-screen w-full bg-gradient-to-br from-institutional-neutral via-white to-institutional-neutral dark:from-institutional-primary dark:via-institutional-secondary dark:to-institutional-primary px-4 md:px-0 py-4">
+      <div className="flex flex-col items-center w-full max-w-[500px]" role="region" aria-label="Interface do ChatBot">
         <ProjectOverview />
         <motion.div
           animate={{
@@ -194,7 +194,7 @@ export default function Chat() {
                 ))}
               </div>
             )}
-            <form onSubmit={handleSubmit} className="flex space-x-2">
+            <form onSubmit={handleSubmit} className="flex space-x-2" role="search" aria-label="Formulário de chat">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -202,6 +202,8 @@ export default function Chat() {
                 accept="image/*"
                 multiple
                 className="hidden"
+                id="file-upload"
+                aria-label="Selecionar imagens para upload"
               />
               <Button
                 type="button"
@@ -209,14 +211,18 @@ export default function Chat() {
                 variant="outline"
                 size="icon"
                 className="shrink-0 border-institutional-accent/30 hover:border-institutional-accent hover:bg-institutional-accent/10 text-institutional-primary dark:text-institutional-accent transition-all"
+                aria-label="Adicionar imagens"
               >
-                <ImageIcon size={20} />
+                <ImageIcon size={20} aria-hidden="true" />
               </Button>
               <Input
                 className="bg-institutional-neutral/50 dark:bg-institutional-primary/50 border-institutional-accent/30 focus:border-institutional-accent text-base w-full text-institutional-primary dark:text-institutional-neutral placeholder:text-institutional-secondary/60 dark:placeholder:text-institutional-neutral/50 focus:ring-2 focus:ring-institutional-accent/50 transition-all"
                 value={input}
                 placeholder={"Pergunte sobre legislação, atribuições ou dados do MRE..."}
                 onChange={(e) => setInput(e.target.value)}
+                aria-label="Digite sua pergunta"
+                disabled={isAwaitingResponse}
+                aria-busy={isAwaitingResponse}
               />
             </form>
             <motion.div
@@ -224,6 +230,10 @@ export default function Chat() {
                 type: "spring",
               }}
               className="min-h-fit flex flex-col gap-2"
+              role="log"
+              aria-live="polite"
+              aria-atomic="false"
+              aria-label="Histórico de conversação"
             >
               <AnimatePresence>
                 {showLoading ? (
@@ -252,7 +262,7 @@ export default function Chat() {
           </div>
         </motion.div>
       </div>
-    </div>
+    </main>
   );
 }
 
