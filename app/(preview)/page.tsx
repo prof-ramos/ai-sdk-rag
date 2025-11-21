@@ -150,7 +150,7 @@ export default function Chat() {
     .slice(-1)[0];
 
   return (
-    <div className="flex justify-center items-start sm:pt-16 min-h-screen w-full dark:bg-neutral-900 px-4 md:px-0 py-4">
+    <div className="flex justify-center items-start sm:pt-16 min-h-screen w-full bg-gradient-to-br from-institutional-neutral via-white to-institutional-neutral dark:from-institutional-primary dark:via-institutional-secondary dark:to-institutional-primary px-4 md:px-0 py-4">
       <div className="flex flex-col items-center w-full max-w-[500px]">
         <ProjectOverview />
         <motion.div
@@ -163,9 +163,9 @@ export default function Chat() {
             bounce: 0.5,
           }}
           className={cn(
-            "rounded-lg w-full ",
+            "rounded-xl w-full shadow-lg backdrop-blur-sm",
             isExpanded
-              ? "bg-neutral-200 dark:bg-neutral-800"
+              ? "bg-white/80 dark:bg-institutional-secondary/80 border border-institutional-accent/20"
               : "bg-transparent",
           )}
         >
@@ -175,7 +175,7 @@ export default function Chat() {
                 {selectedImages.map((file, index) => (
                   <div
                     key={index}
-                    className="relative group rounded-lg overflow-hidden border-2 border-neutral-300 dark:border-neutral-600"
+                    className="relative group rounded-lg overflow-hidden border-2 border-institutional-accent shadow-md"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -185,7 +185,7 @@ export default function Chat() {
                     />
                     <button
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-lg"
                       type="button"
                     >
                       <X size={12} />
@@ -208,12 +208,12 @@ export default function Chat() {
                 onClick={() => fileInputRef.current?.click()}
                 variant="outline"
                 size="icon"
-                className="shrink-0"
+                className="shrink-0 border-institutional-accent/30 hover:border-institutional-accent hover:bg-institutional-accent/10 text-institutional-primary dark:text-institutional-accent transition-all"
               >
                 <ImageIcon size={20} />
               </Button>
               <Input
-                className={`bg-neutral-100 text-base w-full text-neutral-700 dark:bg-neutral-700 dark:placeholder:text-neutral-400 dark:text-neutral-300`}
+                className="bg-institutional-neutral/50 dark:bg-institutional-primary/50 border-institutional-accent/30 focus:border-institutional-accent text-base w-full text-institutional-primary dark:text-institutional-neutral placeholder:text-institutional-secondary/60 dark:placeholder:text-institutional-neutral/50 focus:ring-2 focus:ring-institutional-accent/50 transition-all"
                 value={input}
                 placeholder={"Pergunte sobre legislação, atribuições ou dados do MRE..."}
                 onChange={(e) => setInput(e.target.value)}
@@ -228,7 +228,7 @@ export default function Chat() {
               <AnimatePresence>
                 {showLoading ? (
                   <div className="px-2 min-h-12">
-                    <div className="dark:text-neutral-400 text-neutral-500 text-sm w-fit mb-1">
+                    <div className="text-institutional-secondary dark:text-institutional-accent text-sm w-fit mb-1 font-medium">
                       {userQuery?.parts
                         .filter((part) => part.type === "text")
                         .map((part) => part.text)
@@ -238,7 +238,7 @@ export default function Chat() {
                   </div>
                 ) : lastAssistantMessage ? (
                   <div className="px-2 min-h-12">
-                    <div className="dark:text-neutral-400 text-neutral-500 text-sm w-fit mb-1">
+                    <div className="text-institutional-secondary dark:text-institutional-accent text-sm w-fit mb-1 font-medium">
                       {userQuery?.parts
                         .filter((part) => part.type === "text")
                         .map((part) => part.text)
@@ -263,14 +263,15 @@ const AssistantMessage = ({ message }: { message: UIMessage | undefined }) => {
     <AnimatePresence mode="wait">
       <motion.div
         key={message.id}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="whitespace-pre-wrap font-mono anti text-sm text-neutral-800 dark:text-neutral-200 overflow-hidden"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ type: "spring", bounce: 0.3 }}
+        className="whitespace-pre-wrap font-sans text-sm text-institutional-primary dark:text-institutional-neutral overflow-hidden bg-institutional-neutral/30 dark:bg-institutional-primary/30 rounded-lg p-3 border border-institutional-accent/20"
         id="markdown"
       >
         <MemoizedReactMarkdown
-          className={"max-h-72 overflow-y-scroll no-scrollbar-gutter"}
+          className={"max-h-72 overflow-y-scroll scrollbar-thin scrollbar-thumb-institutional-accent scrollbar-track-institutional-neutral/20"}
         >
           {message.parts
             .filter((part) => part.type === "text")
@@ -299,17 +300,17 @@ const Loading = ({ tool }: { tool?: string }) => {
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ type: "spring" }}
-        className="overflow-hidden flex justify-start items-center"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: "spring", bounce: 0.3 }}
+        className="overflow-hidden flex justify-start items-center bg-institutional-accent/10 dark:bg-institutional-accent/20 rounded-lg p-3 border border-institutional-accent/30"
       >
-        <div className="flex flex-row gap-2 items-center">
-          <div className="animate-spin dark:text-neutral-400 text-neutral-500">
+        <div className="flex flex-row gap-3 items-center">
+          <div className="animate-spin text-institutional-accent">
             <LoadingIcon />
           </div>
-          <div className="text-neutral-500 dark:text-neutral-400 text-sm">
+          <div className="text-institutional-secondary dark:text-institutional-accent text-sm font-medium">
             {toolName}...
           </div>
         </div>

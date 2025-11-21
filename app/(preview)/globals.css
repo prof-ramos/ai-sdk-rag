@@ -103,5 +103,42 @@
 }
 
 #markdown a {
-    @apply text-blue-500;
+    @apply text-institutional-accent hover:text-institutional-secondary dark:hover:text-institutional-neutral underline transition-colors;
+}
+
+/* Custom scrollbar styles */
+.scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #82b4d6 rgba(231, 237, 244, 0.2);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: rgba(231, 237, 244, 0.2);
+    border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #82b4d6;
+    border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #0D2A4A;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgba(4, 9, 32, 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #82b4d6;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #e7edf4;
 }
