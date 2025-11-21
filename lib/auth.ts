@@ -3,8 +3,15 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { env } from "@/lib/env.mjs";
 
-// Use a placeholder during build time, but validate at runtime
-const JWT_SECRET = env.JWT_SECRET || process.env.JWT_SECRET || "";
+// JWT_SECRET is validated at runtime to allow builds without secrets
+const JWT_SECRET = env.JWT_SECRET;
+
+// Known insecure values that should be rejected
+const INSECURE_SECRETS = [
+  "placeholder-jwt-secret-min-32-chars-long",
+  "test-secret-min-32-chars-long-for-testing",
+  "development-secret-change-in-production",
+];
 
 // Validate JWT_SECRET when actually using it (runtime check)
 function getSecretKey(): Uint8Array {
@@ -15,6 +22,16 @@ function getSecretKey(): Uint8Array {
       "Set JWT_SECRET in your .env.local file to a cryptographically secure random string (minimum 32 characters)."
     );
   }
+
+  // Reject known insecure placeholder values
+  if (INSECURE_SECRETS.includes(JWT_SECRET)) {
+    throw new Error(
+      "SECURITY ERROR: JWT_SECRET is set to a known insecure placeholder value. " +
+      "This is a critical security vulnerability that allows token forgery. " +
+      "Generate a secure random secret: openssl rand -base64 32"
+    );
+  }
+
   return new TextEncoder().encode(JWT_SECRET);
 }
 
