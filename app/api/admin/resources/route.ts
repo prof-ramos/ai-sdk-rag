@@ -3,36 +3,38 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { resources, embeddings } from "@/lib/db/schema";
 import { createResource } from "@/lib/actions/resources";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 export async function GET() {
   try {
     await requireAdmin();
 
-    const allResources = await db
+    // OPTIMIZED: Use a single query with GROUP BY instead of N+1 queries
+    // This replaces the previous N+1 query pattern where we fetched each resource
+    // and then made a separate query for each resource's embedding count
+    const resourcesWithEmbeddings = await db
       .select({
         id: resources.id,
         content: resources.content,
+        title: resources.title,
+        documentType: resources.documentType,
+        sourceUrl: resources.sourceUrl,
         createdAt: resources.createdAt,
         updatedAt: resources.updatedAt,
+        embeddingCount: sql<number>`count(${embeddings.id})::int`,
       })
       .from(resources)
+      .leftJoin(embeddings, eq(embeddings.resourceId, resources.id))
+      .groupBy(
+        resources.id,
+        resources.content,
+        resources.title,
+        resources.documentType,
+        resources.sourceUrl,
+        resources.createdAt,
+        resources.updatedAt
+      )
       .orderBy(desc(resources.createdAt));
-
-    // Get embedding count for each resource
-    const resourcesWithEmbeddings = await Promise.all(
-      allResources.map(async (resource) => {
-        const embeddingCount = await db
-          .select()
-          .from(embeddings)
-          .where(eq(embeddings.resourceId, resource.id));
-
-        return {
-          ...resource,
-          embeddingCount: embeddingCount.length,
-        };
-      })
-    );
 
     return NextResponse.json({ resources: resourcesWithEmbeddings });
   } catch (error) {
