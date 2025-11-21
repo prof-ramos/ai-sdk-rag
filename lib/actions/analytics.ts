@@ -43,11 +43,11 @@ export async function getChatStatistics(
   endDate?: Date
 ): Promise<ChatStatistics | null> {
   try {
-    const result = await db.execute<ChatStatistics>(
+    const result = await db.execute(
       sql`SELECT * FROM get_chat_statistics(${startDate || null}, ${endDate || null})`
     );
 
-    return result.rows[0] || null;
+    return (result[0] as unknown as ChatStatistics) || null;
   } catch (error) {
     console.error("Error fetching chat statistics:", error);
     return null;
@@ -60,11 +60,11 @@ export async function getChatStatistics(
  */
 export async function getResourceStatistics(): Promise<ResourceStatistics | null> {
   try {
-    const result = await db.execute<ResourceStatistics>(
+    const result = await db.execute(
       sql`SELECT * FROM get_resource_statistics()`
     );
 
-    return result.rows[0] || null;
+    return (result[0] as unknown as ResourceStatistics) || null;
   } catch (error) {
     console.error("Error fetching resource statistics:", error);
     return null;
@@ -79,11 +79,11 @@ export async function getHeavyResources(
   minEmbeddingCount: number = 50
 ): Promise<HeavyResource[]> {
   try {
-    const result = await db.execute<HeavyResource>(
+    const result = await db.execute(
       sql`SELECT * FROM get_heavy_resources(${minEmbeddingCount})`
     );
 
-    return result.rows;
+    return result as unknown as HeavyResource[];
   } catch (error) {
     console.error("Error fetching heavy resources:", error);
     return [];
@@ -97,11 +97,12 @@ export async function getHeavyResources(
  */
 export async function cleanupOldChatLogs(retentionDays: number = 90): Promise<number> {
   try {
-    const result = await db.execute<{ deleted_count: bigint }>(
+    const result = await db.execute(
       sql`SELECT * FROM cleanup_old_chat_logs(${retentionDays})`
     );
 
-    return Number(result.rows[0]?.deleted_count || 0);
+    const row = result[0] as unknown as { deleted_count: bigint } | undefined;
+    return Number(row?.deleted_count || 0);
   } catch (error) {
     console.error("Error cleaning up old chat logs:", error);
     return 0;
@@ -114,11 +115,12 @@ export async function cleanupOldChatLogs(retentionDays: number = 90): Promise<nu
  */
 export async function refreshDashboardStats(): Promise<Date | null> {
   try {
-    const result = await db.execute<{ refresh_dashboard_stats: Date }>(
+    const result = await db.execute(
       sql`SELECT refresh_dashboard_stats()`
     );
 
-    return result.rows[0]?.refresh_dashboard_stats || null;
+    const row = result[0] as unknown as { refresh_dashboard_stats: Date } | undefined;
+    return row?.refresh_dashboard_stats || null;
   } catch (error) {
     console.error("Error refreshing dashboard stats:", error);
     return null;
@@ -135,7 +137,7 @@ export async function getDashboardStats() {
       sql`SELECT * FROM mv_dashboard_stats`
     );
 
-    return result.rows[0] || null;
+    return result[0] || null;
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
     return null;

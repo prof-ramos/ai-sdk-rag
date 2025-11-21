@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { chatLogs, type NewChatLogParams } from "@/lib/db/schema";
-import { desc, lt, and, eq, sql } from "drizzle-orm";
+import { desc, lt, eq, sql } from "drizzle-orm";
 
 export async function createChatLog(log: NewChatLogParams) {
   await db.insert(chatLogs).values(log);
